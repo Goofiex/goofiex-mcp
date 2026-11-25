@@ -27,7 +27,7 @@ function createServer() {
 	);
 
 	// Dynamically add tools based on the authenticated user's email.
-	if (props && ALLOWED_EMAILS.has(props.email)) {
+	if (props?.emailVerified === true && ALLOWED_EMAILS.has(props.email)) {
 		server.registerTool(
 			"generateImage",
 			{

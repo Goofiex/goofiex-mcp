@@ -1,4 +1,5 @@
 ACCESS_CLIENT_ID=<Copy from "Client ID" in dash>
+ACCESS_ISSUER=<Exact HTTPS issuer from the Access OIDC configuration>
 ACCESS_CLIENT_SECRET=<Copy from "Client secret" in dash>
 ACCESS_TOKEN_URL=<Copy from "Token endpoint" in dash>
 ACCESS_AUTHORIZATION_URL=<Copy from "Authorization endpoint" in dash>

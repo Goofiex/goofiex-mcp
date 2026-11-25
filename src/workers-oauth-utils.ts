@@ -2,6 +2,7 @@
 // OAuth utility functions with CSRF and state validation security fixes
 
 import type { AuthRequest, ClientInfo } from "@cloudflare/workers-oauth-provider";
+import { boundedJson, httpsUrl } from "./oidc-verify.mjs";
 
 /**
  * OAuth 2.1 compliant error class.
@@ -35,7 +36,7 @@ export class OAuthError extends Error {
 			}),
 			{
 				status: this.statusCode,
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
 			},
 		);
 	}
@@ -712,7 +713,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
               <input type="hidden" name="csrf_token" value="${csrfToken}">
 
               <div class="actions">
-                <button type="button" class="button button-secondary" onclick="window.history.back()">Cancel</button>
+                <a class="button button-secondary" href="/">Cancel</a>
                 <button type="submit" class="button button-primary">Approve</button>
               </div>
             </form>
@@ -724,7 +725,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 
 	return new Response(htmlContent, {
 		headers: {
-			"Content-Security-Policy": "frame-ancestors 'none'",
+			"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src https://avatars.githubusercontent.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+			"Cache-Control": "no-store",
+			"Referrer-Policy": "no-referrer",
 			"Content-Type": "text/html; charset=utf-8",
 			"Set-Cookie": setCookie,
 			"X-Frame-Options": "DENY",
@@ -771,7 +774,8 @@ async function getApprovedClientsFromCookie(
 	if (parts.length !== 2) return null;
 
 	const [signatureHex, base64Payload] = parts;
-	const payload = atob(base64Payload);
+	let payload: string;
+	try { payload = atob(base64Payload); } catch { return null; }
 
 	const isValid = await verifySignature(signatureHex, payload, cookieSecret);
 
@@ -846,7 +850,7 @@ export function getUpstreamAuthorizeUrl(params: {
 	code_challenge: string;
 	code_challenge_method?: string;
 }): string {
-	const url = new URL(params.upstream_url);
+	const url = httpsUrl(params.upstream_url);
 	url.searchParams.set("client_id", params.client_id);
 	url.searchParams.set("redirect_uri", params.redirect_uri);
 	url.searchParams.set("response_type", "code");
@@ -882,8 +886,10 @@ export async function fetchUpstreamAuthToken(params: {
 		code_verifier: params.code_verifier,
 	});
 
-	const response = await fetch(params.upstream_url, {
+	const response = await fetch(httpsUrl(params.upstream_url).href, {
 		method: "POST",
+		redirect: "error",
+		signal: AbortSignal.timeout(10000),
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
 			Accept: "application/json",
@@ -892,25 +898,20 @@ export async function fetchUpstreamAuthToken(params: {
 	});
 
 	if (!response.ok) {
-		const errorText = await response.text();
-		return [
-			null,
-			null,
-			new Response(`Failed to exchange code for token: ${errorText}`, {
-				status: response.status,
-			}),
-		];
+		try { await response.body?.cancel(); } catch { /* never log upstream contents */ }
+		return [null, null, new Response("Token exchange failed", { status: 502, headers: { "Cache-Control": "no-store" } })];
 	}
 
-	const body = (await response.json()) as any;
+	const body = await boundedJson(response);
+	if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid token response");
 
 	const accessToken = body.access_token as string;
-	if (!accessToken) {
+	if (typeof accessToken !== "string" || !accessToken || accessToken.length > 16384) {
 		return [null, null, new Response("Missing access token", { status: 400 })];
 	}
 
 	const idToken = body.id_token as string;
-	if (!idToken) {
+	if (typeof idToken !== "string" || !idToken || idToken.length > 16384) {
 		return [null, null, new Response("Missing id token", { status: 400 })];
 	}
 	return [accessToken, idToken, null];
@@ -920,8 +921,8 @@ export async function fetchUpstreamAuthToken(params: {
  * Props interface for upstream provider user data
  */
 export interface Props {
-	accessToken: string;
 	email: string;
+	emailVerified?: boolean;
 	login: string;
 	name: string;
 	[key: string]: unknown;
