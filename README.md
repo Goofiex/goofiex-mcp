@@ -3,7 +3,7 @@
 This is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) server that supports remote MCP connections, with Access OAuth built-in.
 
 > [!IMPORTANT]
-> Before testing OAuth or deploying, set `MCP_RESOURCE` to the canonical HTTPS URL clients connect to, ending in `/mcp`. [Workers OAuth Provider](https://github.com/cloudflare/workers-oauth-provider) binds tokens to that resource. Use an isolated HTTPS development origin for OAuth testing.
+> The checked-in `MCP_RESOURCE` matches the canonical Goofiex production URL. [Workers OAuth Provider](https://github.com/cloudflare/workers-oauth-provider) binds tokens to that resource. Override it with the URL of an isolated HTTPS development origin for OAuth testing.
 
 You can deploy it to your own Cloudflare account, and after you create your own Access for SaaS OIDC app, you'll have a fully functional remote MCP server that you can build off. Users will be able to connect to your MCP server by signing in with your connected Access Identity Provider.
 
