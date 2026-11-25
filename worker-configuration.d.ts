@@ -5,6 +5,7 @@ interface __BaseEnv_Env {
 	OAUTH_KV: KVNamespace;
 	AI: Ai;
 	ACCESS_CLIENT_ID: string;
+	ACCESS_ISSUER: string;
 	ACCESS_CLIENT_SECRET: string;
 	ACCESS_TOKEN_URL: string;
 	ACCESS_AUTHORIZATION_URL: string;
@@ -22,7 +23,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ACCESS_CLIENT_ID" | "ACCESS_CLIENT_SECRET" | "ACCESS_TOKEN_URL" | "ACCESS_AUTHORIZATION_URL" | "ACCESS_JWKS_URL" | "COOKIE_ENCRYPTION_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ACCESS_CLIENT_ID" | "ACCESS_ISSUER" | "ACCESS_CLIENT_SECRET" | "ACCESS_TOKEN_URL" | "ACCESS_AUTHORIZATION_URL" | "ACCESS_JWKS_URL" | "COOKIE_ENCRYPTION_KEY">> {}
 }
 
 // Begin runtime types

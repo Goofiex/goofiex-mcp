@@ -3,7 +3,7 @@
 This is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) server that supports remote MCP connections, with Access OAuth built-in.
 
 > [!IMPORTANT]
-> Before you deploy, set `MCP_RESOURCE` in `wrangler.jsonc` to the URL MCP clients connect to, for example `https://<worker-name>.<your-subdomain>.workers.dev/mcp`. [Workers OAuth Provider](https://github.com/cloudflare/workers-oauth-provider) binds every token to that URL. The default value works for local development.
+> The checked-in `MCP_RESOURCE` matches the canonical Goofiex production URL. [Workers OAuth Provider](https://github.com/cloudflare/workers-oauth-provider) binds tokens to that resource. Override it with the URL of an isolated HTTPS development origin for OAuth testing.
 
 You can deploy it to your own Cloudflare account, and after you create your own Access for SaaS OIDC app, you'll have a fully functional remote MCP server that you can build off. Users will be able to connect to your MCP server by signing in with your connected Access Identity Provider.
 
@@ -14,24 +14,29 @@ The MCP server (powered by [Cloudflare Workers](https://developers.cloudflare.co
 
 ## Getting Started
 
-Clone the repo & install dependencies: `npm install`
+Clone the repo & install dependencies: `npm ci`
 
 ### For Production
 
 Create a new [Access for SaaS OIDC App](https://developers.cloudflare.com/cloudflare-one/applications/configure-apps/saas-apps/generic-oidc-saas/):
 
-- For the Authorization callback URL, specify `https://mcp-access-oauth.<your-subdomain>.workers.dev/callback` and `http://localhost:8788/callback` if you are developing locally.
+- Set the authorization callback to `/callback` on the same canonical HTTPS origin.
 - Note your Client ID and Client secret.
 - Set secrets via Wrangler
 
 ```bash
 wrangler secret put ACCESS_CLIENT_ID
+wrangler secret put ACCESS_ISSUER
 wrangler secret put ACCESS_CLIENT_SECRET
 wrangler secret put ACCESS_TOKEN_URL
 wrangler secret put ACCESS_AUTHORIZATION_URL
 wrangler secret put ACCESS_JWKS_URL
 wrangler secret put COOKIE_ENCRYPTION_KEY # add any random string here e.g. openssl rand -hex 32
 ```
+
+Set `ACCESS_ISSUER` to the exact HTTPS issuer identifier configured for Access OIDC.
+The ID token must identify this issuer and the configured client ID. Tools privileged
+by email require Access to attest that the email was verified.
 
 #### Set up a KV namespace
 
@@ -93,13 +98,14 @@ Once the Tools (under 🔨) show up in the interface, you can ask Claude to use 
 
 If you'd like to iterate and test your MCP server, you can do so in local development.
 
-- For the Homepage URL, specify `http://localhost:8788`
-- For the Authorization callback URL, specify `http://localhost:8788/callback`
+- Use a dedicated HTTPS development origin and configure `MCP_RESOURCE` with its `/mcp` URL.
+- Set the authorization callback to `/callback` on that origin.
 - Note your Client ID and generate a Client secret.
 - Create a `.dev.vars` file in your project root with:
 
 ```
 ACCESS_CLIENT_ID=<your client id>
+ACCESS_ISSUER=<exact Access OIDC HTTPS issuer>
 ACCESS_CLIENT_SECRET=<your client secret>
 ACCESS_TOKEN_URL=<your Access for SaaS token url>
 ACCESS_AUTHORIZATION_URL=<your Access for SaaS authorization url>
@@ -109,10 +115,9 @@ COOKIE_ENCRYPTION_KEY=COOKIE_ENCRYPTION_KEY
 
 #### Develop & Test
 
-Run the server locally to make it available at `http://localhost:8788`
-`wrangler dev`
+Run `npm test` and `npm run type-check` for offline checks.
 
-To test the local server, enter `http://localhost:8788/mcp` into Inspector and hit connect. Once you follow the prompts, you'll be able to "List Tools".
+For a full OAuth test, open the dedicated HTTPS development URL in Inspector.
 
 #### Using Claude and other MCP Clients
 
